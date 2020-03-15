@@ -1,0 +1,30 @@
+{
+  "name": "atrappos-server",
+  "version": "1.0.0",
+  "description": "back-end for atrappos map app",
+  "main": "index.js",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.19.0",
+    "concurrently": "^5.0.1",
+    "express": "^4.17.1",
+    "is-empty": "^1.2.0",
+    "jsonwebtoken": "^8.3.0",
+    "moment": "^2.24.0",
+    "mongoose": "^5.8.0",
+    "nodemon": "^2.0.1",
+    "passport": "^0.4.0",
+    "passport-jwt": "^4.0.0",
+    "validator": "^10.9.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1 ",
+    "server": "nodemon index.js",
+    "client": "npm run start --prefix ../atrappos-client",
+    "dev": "concurrently --kill-others-on-fail \"npm run server\" \"npm run client\"",
+    "start": "node index.js"
+  },
+  "author": "evabat",
+  "license": "ISC"
+}
