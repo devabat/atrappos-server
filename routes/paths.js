@@ -4,19 +4,13 @@ const moment  = require('moment');
 
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-const cors = require('cors');
 
 // Load Path model
 const Path = require("../models/Path");
 
-const corsOptions = {
-  origin: 'https://devabat.github.io',
-  optionsSuccessStatus: 200,
-  allowedHeaders: 'Content-Type, Authorization, x-access-token'
-};
 module.exports = (app) => {
 // Bodyparser middleware
-  app.get(`/api/paths`, cors(corsOptions), async (req, res) => {
+  app.get(`/api/paths`, async (req, res) => {
     try {
       const paths = await Path.find({});
       return res.status(200).send(paths);
@@ -25,7 +19,7 @@ module.exports = (app) => {
     }
   });
 
-  app.get(`/api/path`, cors(corsOptions), async (req, res) => {
+  app.get(`/api/path`, async (req, res) => {
     const id = req.query.id;
     try {
       const path = await Path.findById(id)
@@ -35,7 +29,7 @@ module.exports = (app) => {
     }
   });
 
-  app.post(`/api/path`, cors(corsOptions), async (req, res) => {
+  app.post(`/api/path`, async (req, res) => {
     //get the token from the header if present
     const token = req.headers["x-access-token"] || req.headers["authorization"];
     //if no token found, return response (without going to the next middelware)
@@ -68,7 +62,7 @@ module.exports = (app) => {
     }
   });
 
-  app.put(`/api/path`, cors(corsOptions), async (req, res) => {
+  app.put(`/api/path`, async (req, res) => {
     //get the token from the header if present
     const token = req.headers["x-access-token"] || req.headers["authorization"];
     //if no token found, return response (without going to the next middleware)
@@ -119,7 +113,7 @@ module.exports = (app) => {
   //
   // });
 
-  app.delete(`/api/path`, cors(corsOptions), async (req, res) => {
+  app.delete(`/api/path`, async (req, res) => {
     //get the token from the header if present
     const token = req.headers["x-access-token"] || req.headers["authorization"];
     //if no token found, return response (without going to the next middleware)
