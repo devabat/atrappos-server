@@ -11,8 +11,9 @@ const Path = require("../models/Path");
 
 const corsOptions = {
   origin: 'https://devabat.github.io',
-  optionsSuccessStatus: 200
-}
+  optionsSuccessStatus: 200,
+  allowedHeaders: 'Content-Type, Authorization, x-access-token'
+};
 module.exports = (app) => {
 // Bodyparser middleware
   app.get(`/api/paths`, cors(corsOptions), async (req, res) => {
