@@ -10,7 +10,7 @@ const cors = require('cors');
 const Path = require("../models/Path");
 
 const corsOptions = {
-  origin: 'https://devabat.github.io/',
+  origin: 'https://devabat.github.io',
   optionsSuccessStatus: 200
 }
 module.exports = (app) => {
