@@ -9,6 +9,15 @@ const jwt = require("jsonwebtoken");
 const Path = require("../models/Path");
 
 module.exports = (app) => {
+  const allowCrossDomain = function(req, res, next) {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    next();
+  };
+
+  app.use(allowCrossDomain);
+// Bodyparser middleware
   app.get(`/api/paths`, async (req, res) => {
     try {
       const paths = await Path.find({});
