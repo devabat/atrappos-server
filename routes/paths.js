@@ -43,6 +43,7 @@ module.exports = (app) => {
       } else {
         let tmpPath = req.body;
         tmpPath.userId = decoded.id;
+        tmpPath.userName = decoded.name;
         tmpPath._id = mongoose.Types.ObjectId();
         let path = new Path(tmpPath);
         path.created = moment();

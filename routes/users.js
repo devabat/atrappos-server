@@ -40,51 +40,6 @@ router.post("/register", (req, res) => {
   });
 });
 
-// @route POST api/users/update
-// @desc Update user
-// @access Private
-router.post("/update", (req, res) => {
-    //get the token from the header if present
-    const token = req.headers["x-access-token"] || req.headers["authorization"];
-    //if no token found, return response (without going to the next middelware)
-    if (!token) return res.status(401).send("Access denied. No token provided.");
-
-    try {
-        //if can verify the token, set req.user and pass to next middleware
-        const decoded = jwt.decode(token.replace("Bearer ",""));
-        const currentTime = Date.now() / 1000; // to get in milliseconds
-        if (decoded.exp < currentTime) {
-            res.status(401).send("Unauthorized token");
-        } else {
-            const name = req.query.name;
-            const type = req.query.updateType;
-            const newPath = req.query.newPath;
-
-            if (type === 'create') {
-                User.findOne({ name }).then(user => {
-                    // Check if user exists
-                    if (!user) {
-                        return res.status(404).json({namenotfound: "Name not found"});
-                    } else {
-                        user.paths = user.paths.push(newPath);
-                        console.log(user.paths)
-                        user
-                            .save()
-                            .then(user => res.json(user))
-                            .catch(err => console.log(err));
-                    }
-                });
-            } else {
-
-            }
-
-        }
-    } catch (ex) {
-        //if invalid token
-        res.status(400).send("Invalid token.");
-    }
-});
-
 
 // @route POST api/users/login
 // @desc Login user and return JWT token
@@ -99,8 +54,8 @@ router.post("/login", (req, res) => {
     return res.status(400).json(errors);
   }
 
-  const email = req.body.email;
-  const password = req.body.password;
+    const email = req.body.email;
+    const password = req.body.password;
 
   // Find user by email
   User.findOne({ email }).then(user => {
@@ -117,8 +72,7 @@ router.post("/login", (req, res) => {
         const payload = {
           id: user.id,
           name: user.name,
-          paths: user.paths
-
+          email: user.email
         };
 
         // Sign token
@@ -151,22 +105,32 @@ router.post("/reset", (req, res) => {
     // Form validation
 
     const { errors, isValid } = validateResetInput(req.body);
-
     // Check validation
     if (!isValid) {
         return res.status(400).json(errors);
     }
-
     const email = req.body.email;
     const password = req.body.password;
     const newPassword = req.body.newPassword;
-    User.findOne({email: email, password: password}, function(err, user){
+    User.findOne({email}, function(err, user){
         // Check if user exists
         if (!user) {
-            return res.status(404).json({emailnotfound: "Email not found"});
+            return res.status(404).json({ emailnotfound: "Email not found" });
         }
-        user.password = newPassword;
-        hashPassword(user, res);
+        // Check password
+        bcrypt.compare(password, user.password).then(isMatch => {
+            if (isMatch) {
+                if (user.repeatNewPassword !== user.newPassword) {
+                    return res.status(401).json({notMatch: "Passwords do not match"});
+                }
+                user.password = newPassword;
+                hashPassword(user, res);
+            } else {
+                return res
+                    .status(400)
+                    .json({ passwordincorrect: "Password incorrect" });
+            }
+        });
     });
 });
 
@@ -183,5 +147,6 @@ function hashPassword (user, res) {
         });
     });
 }
+
 
 module.exports = router;

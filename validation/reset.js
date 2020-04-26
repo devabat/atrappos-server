@@ -9,6 +9,7 @@ module.exports = function validateResetInput(data) {
     data.email = !isEmpty(data.email) ? data.email : "";
     data.password = !isEmpty(data.password) ? data.password : "";
     data.newPassword = !isEmpty(data.newPassword) ? data.newPassword : "";
+    data.repeatNewPassword = !isEmpty(data.repeatNewPassword) ? data.repeatNewPassword : "";
 
     // Email checks
     if (Validator.isEmpty(data.email)) {
@@ -23,6 +24,16 @@ module.exports = function validateResetInput(data) {
     // New Password checks
     if (Validator.isEmpty(data.newPassword)) {
         errors.newPassword = "The New Password field is required";
+    }
+
+    //  Repeat New Password checks
+    if (Validator.isEmpty(data.repeatNewPassword)) {
+        errors.repeatNewPassword = "The Repeat New Password field is required";
+    }
+
+    // New Password checks
+    if (data.repeatNewPassword !== data.newPassword) {
+        errors.notMatch = "Passwords do not match";
     }
 
     return {

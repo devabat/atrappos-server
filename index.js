@@ -9,7 +9,7 @@ const paths = require("./routes/paths");
 const app = express();
 
 const allowCrossDomain = function(req, res, next) {
-    res.header('Access-Control-Allow-Origin', 'https://devabat.github.io');
+    res.header('Access-Control-Allow-Origin', process.env.CLIENT_URL);
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Access-Token');
     next();
@@ -85,11 +85,11 @@ app.listen(port, () => console.log(`Server up and running on port ${port} !`));
 //
 //
 // if (process.env.NODE_ENV === 'production') {
-//   app.use(express.static('../atrappos-client/build'));
+//   app.use(express.static('../atrappos-web/build'));
 //
 //   const path = require('path');
 //   app.get('*', (req,res) => {
-//       res.sendFile(path.resolve(__dirname, '../atrappos-client', 'build', 'index.html'))
+//       res.sendFile(path.resolve(__dirname, '../atrappos-web', 'build', 'index.html'))
 //   })
 //
 // }

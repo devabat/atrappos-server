@@ -10,6 +10,7 @@ const featureSchema = new Schema({
         hardship: { type: String },
         difficulty: { type: String },
         category: { type: String },
+        description: { type: String }
     },
     geometry: {
         type: { type: String },
@@ -21,6 +22,7 @@ const featureSchema = new Schema({
 const pathSchema = new Schema({
     _id: Schema.Types.ObjectId,
     userId: { type: String },
+    userName: { type: String },
     type: { type: String },
     name: { type: String },
     description: { type: String},
