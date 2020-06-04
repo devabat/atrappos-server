@@ -1,22 +1,32 @@
-atrappos-server
+Atrappos Server
 
-Node server for the project atrappos
+Node server for the project Atrappos
 
-Environment variables:
+## Available Scripts
 
-* MONGODB_URI : mongodb://192.168.56.12:27017/?readPreference=primary&appname=MongoDB%20Compass&ssl=false <br>
+In the project directory, you can run:
+
+### `npm install`
+
+And then:
+
+### `npm start`
+
+Runs the server in Development mode
+
+Or if you want to run it along with one of the client apps (Atrappos Web/Mobile)
+
+### `npm run dev`
+
+In this case, change the `client` property at package.json (currently there is the desktop version)
+
+### ENVIRONMENT VARIABLES
+
+* MONGODB_URI : `<YOUR MONGO DB URL>`
+* MAPBOX_ACCESS_TOKEN: A token acquired from [Mapbox](https://www.mapbox.com/)
 * CLIENT_URL: localhost:3000
+* MOB_CLIENT_URL: localhost:4000
 
-#### Docker Mongo RUN:
-
-``
-docker run -d --name atrappos-mongo \
--v /var/dockers/data/atrappos-mongodb:/data/db \
--v /var/dockers/data/atrappos-mongodb/backup:/backup \
--v /var/dockers/data/atrappos-mongodb/opt:/opt \
--m=4G --restart unless-stopped -p 27017:27017 \
--e "TZ=Europe/Athens" mongo:4.2.3-bionic
-``
 
 
 

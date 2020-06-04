@@ -3,33 +3,35 @@
 const mongoose = require('mongoose');
 const {Schema} = mongoose;
 
-const featureSchema = new Schema({
-    _featureId: Schema.Types.ObjectId,
+const propertiesSchema = new Schema({
+    objective: { type: String },
+    subjective: { type: String },
+}, { _id : false });
+
+const geometrySchema = new Schema({
     type: { type: String },
-    properties: {
-        hardship: { type: String },
-        difficulty: { type: String },
-        category: { type: String },
-        description: { type: String }
-    },
-    geometry: {
-        type: { type: String },
-        coordinates: {type: Array}
-    }
-});
+    coordinates: {type: Array}
+}, { _id : false });
 
 
 const pathSchema = new Schema({
     _id: Schema.Types.ObjectId,
     userId: { type: String },
-    userName: { type: String },
     type: { type: String },
+    geometry: geometrySchema,
+    properties: propertiesSchema,
+    device: { type: String },
+    created: { type: Date },
+    modified: [{ type: Date }],
+    area: { type: String },
+    distance: { type: Number},
     name: { type: String },
     description: { type: String},
-    features: [featureSchema],
-    created: { type: Date },
-    edited: [{ type: Date}],
-    device: { type: String }
+    drawType: { type: String },
+    drawn: {type: Object},
+    evaluations: [{ type: Object }],
+    edited: [{ type: Object }],
+    snapped: { type: Boolean }
 });
 
 
