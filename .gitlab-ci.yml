@@ -1,0 +1,57 @@
+variables:
+  DEPLOY_HOST: '<YOUR_HOST_ADDRESS>'
+
+stages:
+  - build
+  - deploy-mk-img
+  - deploy-run-img
+
+create-set-docker-image:
+  image: <your_docker_server>/docker:latest
+  stage: deploy-mk-img
+  only:
+    - dev
+    - uat
+    - master
+  before_script:
+    - apk --no-cache add --update bash openssh openssh-client &&
+      which ssh-agent || ( apk --update add openssh-client ) &&
+      eval $(ssh-agent -s) &&
+      mkdir -p ~/.ssh &&
+      echo "$SSH_PRIVATE_KEY" | ssh-add - > /dev/null
+    # Add on server the user id_rsa.pub to authorized_keys on server again
+    - ssh-keyscan "$DEPLOY_HOST" >> ~/.ssh/known_hosts &&
+      chmod 700 ~/.ssh && chmod 644 ~/.ssh/known_hosts
+    - >
+      docker build
+      --build-arg MONGODB_URI='<YOUR_MONGO_URL>'
+      --build-arg MAPBOX_ACCESS_TOKEN='<YOUR_MAPBOX_ACCESS_TOKEN>'
+      --build-arg CLIENT_URL='<ATRAPPOS_WEB_URL>'
+      --build-arg MOB_CLIENT_URL='<ATRAPPOS_MOB_URL>'
+      --build-arg NODE_ENV="production"
+      -t <DIRECTORY>/atrappos-server .
+    - docker save <DIRECTORY>/atrappos-server > /tmp/atrappos-server.tar &&
+      docker rmi <DIRECTORY>/atrappos-server
+  script:
+    - scp -r /tmp/atrappos-server.tar cirobot@$DEPLOY_HOST:/tmp/atrappos-server.tar
+    - ssh cirobot@$DEPLOY_HOST 'docker load < /tmp/atrappos-server.tar && rm /tmp/atrappos-server.tar'
+
+deploy-image:
+  image: <your_docker_server>/docker:latest
+  stage: deploy-run-img
+  only:
+    - dev
+    - uat
+    - master
+  dependencies:
+    - create-set-docker-image
+  variables:
+    DOCKER_HOST: $DEPLOY_HOST:4243
+  script:
+    - docker stop atrappos-server || echo 'Container atrappos-server not found, not stoped'
+    - docker rm atrappos-server || echo 'Container atrappos-server not running'
+    - >
+      docker run -d -p 5001:5000
+      --restart unless-stopped
+      -m 350M --memory-swap=-1
+      --name atrappos-server <DIRECTORY>/atrappos-server
