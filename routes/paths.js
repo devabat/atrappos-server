@@ -1,5 +1,6 @@
 // /routes/pathRoute.js
 
+
 const moment  = require('moment');
 
 const mongoose = require('mongoose');
@@ -7,6 +8,9 @@ const jwt = require('jsonwebtoken');
 
 // Load Path model
 const Path = require("../models/Path");
+
+// Load User model
+const User = require("../models/User");
 
 const device = require('express-device');
 
@@ -140,10 +144,12 @@ module.exports = (app) => {
       //if can verify the token, set req.user and pass to next middleware
       const decoded = jwt.decode(token.replace("Bearer ", ""));
       const currentTime = Date.now() / 1000; // to get in milliseconds
+      let path = req.body;
       if (decoded.exp < currentTime) {
         res.status(401).send("Unauthorized token");
+      } else if (decoded.id !== path.userId) {
+        res.status(401).send("Unauthorized access");
       } else {
-        let path = req.body;
         const id = req.query.id;
         let modified = path.modified;
         modified.push(moment(new Date()).format('YYYY-MM-DD HH:mm:ss'));
@@ -191,9 +197,7 @@ module.exports = (app) => {
           uri: query,
           toJSON: true
         }
-
         request(options).then(function (response){
-          console.log('snap response', response)
           let resp = JSON.parse(response).matchings[0].geometry.coordinates;
           return res.status(200).json(resp);
         })
@@ -208,17 +212,6 @@ module.exports = (app) => {
   });
 
 
-  // app.put(`/api/path/:id`, async (req, res) => {
-  //   const {id} = req.params;
-  //
-  //   let path = await Path.findByIdAndUpdate(id, req.body);
-  //
-  //   return res.status(202).send({
-  //     error: false,
-  //     path
-  //   })
-  //
-  // });
 
   app.delete(`/api/path`, async (req, res) => {
     //get the token from the header if present
@@ -269,15 +262,27 @@ module.exports = (app) => {
         res.status(401).send("Unauthorized token");
       } else {
         const paths = await Path.find({});
-        let data = paths.map((p) => ({drawType: camelSentence(p.drawType), drawDuration: p.drawn.duration})).sort(compareDrawType);
-        return res.status(200).send(data);
+
+        let data = paths.map((p)=>
+            ({drawType: camelSentence(p.drawType),
+              drawDuration: [p.drawn.duration]
+            }));
+
+        let result = Object.values(data.reduce((e, o) => (e[o.drawType]
+            ? (e[o.drawType].drawDuration = e[o.drawType].drawDuration.concat(o.drawDuration))
+            : (e[o.drawType] = {...o}), e), {})).sort(compareDrawType).map((r)=> {
+          return {drawType: r.drawType, drawDuration: (r.drawDuration.reduce( ( p, c ) => p + c, 0 ) / r.drawDuration.length / 60).toFixed(2)}
+        })
+        // let data = paths.map((p) => ({drawType: camelSentence(p.drawType), drawDuration: p.drawn.duration})).sort(compareDrawType);
+
+        return res.status(200).send(result);
       }
     } catch (err) {
       return res.status(500).json({ message: err.message })
     }
   });
 
-  // Edits
+  // Edit Count
   app.get(`/api/paths/chart/edit/count`, async (req, res) => {
     //get the token from the header if present
     const token = req.headers["x-access-token"] || req.headers["authorization"];
@@ -297,9 +302,80 @@ module.exports = (app) => {
               afterSave: p.edited.filter((ed)=> ed.state === 'afterSave').length,
             }));
 
-        const result = Object.values(data.reduce((e, o) => (e[o.drawType]
+        let result = Object.values(data.reduce((e, o) => (e[o.drawType]
             ? (e[o.drawType].beforeSave += o.beforeSave,
                 e[o.drawType].afterSave += o.afterSave)
+            : (e[o.drawType] = {...o}), e), {})).sort(compareDrawType);
+
+        result = result.filter(function( obj ) {
+          return obj.drawType !== 'Location';
+        });
+
+        return res.status(200).send(result);
+      }
+    } catch (err) {
+      return res.status(500).json({ message: err.message })
+    }
+  });
+
+  // Edit Duration
+  app.get(`/api/paths/chart/edit/duration`, async (req, res) => {
+    //get the token from the header if present
+    const token = req.headers["x-access-token"] || req.headers["authorization"];
+    //if no token found, return response (without going to the next middleware)
+    if (!token) return res.status(401).send("Access denied. No token provided.");
+    try {
+      //if can verify the token, set req.user and pass to next middleware
+      const decoded = jwt.decode(token.replace("Bearer ", ""));
+      const currentTime = Date.now() / 1000; // to get in milliseconds
+      if (decoded.exp < currentTime || decoded.role !== 'admin') {
+        res.status(401).send("Unauthorized token");
+      } else {
+        const paths = await Path.find({});
+
+        let data = paths.map((p)=>
+            (p.edited.length > 0 && p.drawType !== 'location' ? {drawType: camelSentence(p.drawType),
+              editDuration: p.edited.map((e) => e.duration)
+            }: null)).filter(d => d !== null);
+
+        let result = Object.values(data.reduce((e, o) => (e[o.drawType]
+            ? (e[o.drawType].editDuration = e[o.drawType].editDuration.concat(o.editDuration))
+            : (e[o.drawType] = {...o}), e), {})).sort(compareDrawType).map((r)=> {
+          return {drawType: r.drawType, editDuration: (r.editDuration.reduce( ( p, c ) => p + c, 0 ) / r.editDuration.length / 60).toFixed(2)}
+        })
+        
+        return res.status(200).send(result);
+      }
+    } catch (err) {
+      return res.status(500).json({ message: err.message })
+    }
+  });
+  // Evaluation Count
+  app.get(`/api/paths/chart/evaluation/count`, async (req, res) => {
+    //get the token from the header if present
+    const token = req.headers["x-access-token"] || req.headers["authorization"];
+    //if no token found, return response (without going to the next middleware)
+    if (!token) return res.status(401).send("Access denied. No token provided.");
+    try {
+      //if can verify the token, set req.user and pass to next middleware
+      const decoded = jwt.decode(token.replace("Bearer ", ""));
+      const currentTime = Date.now() / 1000; // to get in milliseconds
+      if (decoded.exp < currentTime || decoded.role !== 'admin') {
+        res.status(401).send("Unauthorized token");
+      } else {
+        const paths = await Path.find({});
+        let data = paths.map((p)=>
+            ({drawType: camelSentence(p.drawType),
+              beforeDraw: p.evaluations.filter((ed)=> ed.state === 'beforeDraw').length,
+              afterDraw: p.evaluations.filter((ed)=> ed.state === 'afterDraw').length,
+              afterSave: p.evaluations.filter((ed)=> ed.state === 'afterSave').length,
+            }));
+
+        let result = Object.values(data.reduce((e, o) => (e[o.drawType]
+            ? (e[o.drawType].beforeDraw += o.beforeDraw,
+                e[o.drawType].afterDraw += o.afterDraw,
+                e[o.drawType].afterSave += o.afterSave)
+
             : (e[o.drawType] = {...o}), e), {})).sort(compareDrawType);
 
         return res.status(200).send(result);
@@ -309,7 +385,216 @@ module.exports = (app) => {
     }
   });
 
+  // Evaluation per Path
+  app.get(`/api/paths/chart/evaluation/per/path`, async (req, res) => {
+    //get the token from the header if present
+    const token = req.headers["x-access-token"] || req.headers["authorization"];
+    //if no token found, return response (without going to the next middleware)
+    if (!token) return res.status(401).send("Access denied. No token provided.");
+    try {
+      //if can verify the token, set req.user and pass to next middleware
+      const decoded = jwt.decode(token.replace("Bearer ", ""));
+      const currentTime = Date.now() / 1000; // to get in milliseconds
+      if (decoded.exp < currentTime || decoded.role !== 'admin') {
+        res.status(401).send("Unauthorized token");
+      } else {
+        const paths = await Path.find({});
+        const subjectiveTypes = {
+          '#12C416': 5,
+          '#3D7AF5': 4,
+          '#B054F8': 3,
+          '#F27418': 2,
+          '#F41A1A': 1
+        };
+
+        const objectiveTypesKeyValue = {
+          5: {label:'Excellent'},
+          4: {label:'Very Good'},
+          3: {label:'Decent'},
+          2: {label:'Not so Good'},
+          1: {label:'Poor'}
+        }
+
+        const subjectiveTypesKeyValue = {
+          5: {label: 'Magnificent'},
+          4: {label: 'Very Pleasing'},
+          3: {label: 'Fair'},
+          2: {label: 'Not so Pleasing'},
+          1: {label: 'Unpleasant'}
+        };
+
+        let filterData = paths.map((p)=> {
+          return { objective: parseInt(p.properties.objective) / 2, subjective: subjectiveTypes[p.properties.subjective]}
+        });
+
+        let resData = [];
+        for (let i=0; i<5; i++) {
+          resData.push({
+            x: i + 1,
+            ay: 1,
+            by: 2,
+            cy: 3,
+            dy: 4,
+            ey: 5,
+            xValueLabel: subjectiveTypesKeyValue[i + 1].label,
+            aValue: filterData.filter((f)=> {return f.subjective ===  i + 1 && f.objective === 1}).length,
+            aValueLabel: objectiveTypesKeyValue[1].label,
+            bValue: filterData.filter((f)=> {return f.subjective ===  i + 1 && f.objective === 2}).length,
+            bValueLabel: objectiveTypesKeyValue[2].label,
+            cValue: filterData.filter((f)=> {return f.subjective ===  i + 1 && f.objective === 3}).length,
+            cValueLabel: objectiveTypesKeyValue[3].label,
+            dValue: filterData.filter((f)=> {return f.subjective ===  i + 1 && f.objective === 4}).length,
+            dValueLabel: objectiveTypesKeyValue[4].label,
+            eValue: filterData.filter((f)=> {return f.subjective ===  i + 1 && f.objective === 5}).length,
+            eValueLabel: objectiveTypesKeyValue[5].label
+          })
+        }
+        return res.status(200).send(resData);
+      }
+    } catch (err) {
+      return res.status(500).json({ message: err.message })
+    }
+  });
+
+  // Draw Type Count Per User
+  app.get(`/api/paths/chart/draw/types/count/per/user`, async (req, res) => {
+    //get the token from the header if present
+    const token = req.headers["x-access-token"] || req.headers["authorization"];
+    //if no token found, return response (without going to the next middleware)
+    if (!token) return res.status(401).send("Access denied. No token provided.");
+    try {
+      //if can verify the token, set req.user and pass to next middleware
+      const decoded = jwt.decode(token.replace("Bearer ", ""));
+      const currentTime = Date.now() / 1000; // to get in milliseconds
+      if (decoded.exp < currentTime || decoded.role !== 'admin') {
+        res.status(401).send("Unauthorized token");
+      } else {
+        const paths = await Path.find({});
+        const users = await User.find({});
+        let data = groupByUser(paths, 'userId');
+        let result = Object.keys(data).map((usrId, idx) =>
+          (data[usrId].length > 0 ?  {
+            user: 'usr' + (idx + 1).toString(),
+            // user: users.find(u => u.id === usrId).name,
+            desktop: data[usrId].filter((p)=> p.drawType === 'desktop').length,
+            phone: data[usrId].filter((p)=> p.drawType === 'phone').length,
+            location: data[usrId].filter((p)=> p.drawType === 'location').length
+          }:null)).filter(d => d !== null);
+
+        return res.status(200).send(result);
+      }
+    } catch (err) {
+      return res.status(500).json({ message: err.message })
+    }
+  });
+
+  // Draw Type Total Count
+  app.get(`/api/paths/chart/draw/types/total/count`, async (req, res) => {
+    //get the token from the header if present
+    const token = req.headers["x-access-token"] || req.headers["authorization"];
+    //if no token found, return response (without going to the next middleware)
+    if (!token) return res.status(401).send("Access denied. No token provided.");
+    try {
+      //if can verify the token, set req.user and pass to next middleware
+      const decoded = jwt.decode(token.replace("Bearer ", ""));
+      const currentTime = Date.now() / 1000; // to get in milliseconds
+      if (decoded.exp < currentTime || decoded.role !== 'admin') {
+        res.status(401).send("Unauthorized token");
+      } else {
+        const paths = await Path.find({});
+        let desktopPaths  = paths.filter((obj) => obj.drawType === 'desktop').length;
+        let phonePaths  = paths.filter((obj) => obj.drawType === 'phone').length;
+        let locationPaths = paths.filter((obj) => obj.drawType === 'location').length;
+
+        let result = [
+          {drawType: 'Desktop',
+            paths: desktopPaths
+          },
+          {drawType: 'Phone',
+            paths: phonePaths
+          },
+          {drawType: 'Location',
+            paths: locationPaths
+          }
+        ];
+        return res.status(200).send(result);
+      }
+    } catch (err) {
+      return res.status(500).json({ message: err.message })
+    }
+  });
+
+  // Draw Type Count Per User
+  app.get(`/api/paths/chart/draw/types/distance/per/user`, async (req, res) => {
+    //get the token from the header if present
+    const token = req.headers["x-access-token"] || req.headers["authorization"];
+    //if no token found, return response (without going to the next middleware)
+    if (!token) return res.status(401).send("Access denied. No token provided.");
+    try {
+      //if can verify the token, set req.user and pass to next middleware
+      const decoded = jwt.decode(token.replace("Bearer ", ""));
+      const currentTime = Date.now() / 1000; // to get in milliseconds
+      if (decoded.exp < currentTime || decoded.role !== 'admin') {
+        res.status(401).send("Unauthorized token");
+      } else {
+        const paths = await Path.find({});
+        const users = await User.find({});
+        let data = groupByUser(paths, 'userId');
+
+        let result = Object.keys(data).map((usrId, idx) =>
+            (data[usrId].length > 0 ?  {
+              user: 'usr' + (idx + 1).toString(),
+              // user: users.find(u => u.id === usrId).name,
+              desktop: parseFloat((data[usrId].filter((p)=> p.drawType === 'desktop').reduce((a, b) => +a + +b.distance, 0) / 1000).toFixed(2)),
+              phone: parseFloat((data[usrId].filter((p)=> p.drawType === 'phone').reduce((a, b) => +a + +b.distance, 0) / 1000).toFixed(2)),
+              location: parseFloat((data[usrId].filter((p)=> p.drawType === 'location').reduce((a, b) => +a + +b.distance, 0) / 1000).toFixed(2))
+            }:null)).filter(d => d !== null);
+
+        return res.status(200).send(result);
+      }
+    } catch (err) {
+      return res.status(500).json({ message: err.message })
+    }
+  });
+
+  // Draw Type Total Distance
+  app.get(`/api/paths/chart/draw/types/total/distance`, async (req, res) => {
+    //get the token from the header if present
+    const token = req.headers["x-access-token"] || req.headers["authorization"];
+    //if no token found, return response (without going to the next middleware)
+    if (!token) return res.status(401).send("Access denied. No token provided.");
+    try {
+      //if can verify the token, set req.user and pass to next middleware
+      const decoded = jwt.decode(token.replace("Bearer ", ""));
+      const currentTime = Date.now() / 1000; // to get in milliseconds
+      if (decoded.exp < currentTime || decoded.role !== 'admin') {
+        res.status(401).send("Unauthorized token");
+      } else {
+        const paths = await Path.find({});
+        let desktopTotalDistance  = parseFloat((paths.filter((p)=> p.drawType === 'desktop').reduce((a, b) => +a + +b.distance, 0) / 1000).toFixed(2));
+        let phoneTotalDistance  = parseFloat((paths.filter((p)=> p.drawType === 'phone').reduce((a, b) => +a + +b.distance, 0) / 1000).toFixed(2));
+        let locationTotalDistance = parseFloat((paths.filter((p)=> p.drawType === 'location').reduce((a, b) => +a + +b.distance, 0) / 1000).toFixed(2));
+
+        let result = [
+          {drawType: 'Desktop',
+            distance: desktopTotalDistance
+          },
+          {drawType: 'Phone',
+            distance: phoneTotalDistance
+          },
+          {drawType: 'Location',
+            distance: locationTotalDistance
+          }
+        ];
+        return res.status(200).send(result);
+      }
+    } catch (err) {
+      return res.status(500).json({ message: err.message })
+    }
+  });
+
 };
+
 
 function camelSentence(str) {
   return  (" " + str).toLowerCase().replace(/[^a-zA-Z0-9]+(.)/g, function(match, chr)
@@ -331,4 +616,17 @@ function compareDrawType( a, b ) {
     return 1;
   }
   return 0;
+}
+
+function groupByUser(items, key) {
+  return items.reduce(
+      (result, item) => ({
+        ...result,
+        [item[key]]: [
+          ...(result[item[key]] || []),
+          item,
+        ],
+      }),
+      {},
+  );
 }

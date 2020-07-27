@@ -13,7 +13,6 @@ const geometrySchema = new Schema({
     coordinates: {type: Array}
 }, { _id : false });
 
-
 const pathSchema = new Schema({
     _id: Schema.Types.ObjectId,
     userId: { type: String },
