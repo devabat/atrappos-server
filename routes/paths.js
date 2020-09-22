@@ -20,12 +20,28 @@ module.exports = (app) => {
   app.use(device.capture());
 // Bodyparser middleware
   app.get(`/api/paths`, async (req, res) => {
+    //get the token from the header if present
+    const token = req.headers["x-access-token"] || req.headers["authorization"];
+    //if no token found, return response (without going to the next middleware)
+    if (!token) return res.status(401).send("Access denied. No token provided.");
     try {
-      const paths = await Path.find({});
-      return res.status(200).send(paths);
-    } catch (err) {
-      return res.status(500).json({ message: err.message })
-    }
+      //if can verify the token, set req.user and pass to next middleware
+      const decoded = jwt.decode(token.replace("Bearer ", ""));
+      const currentTime = Date.now() / 1000; // to get in milliseconds
+        if (decoded.exp < currentTime) {
+          res.status(401).send("Unauthorized token");
+        } else {
+          try {
+            const paths = await Path.find({});
+            return res.status(200).send(paths);
+          } catch (err) {
+            return res.status(500).json({message: err.message})
+          }
+        }
+      } catch (ex) {
+        //if invalid token
+        res.status(400).send("Invalid token.");
+      }
   });
   app.get(`/api/paths/desktop`, async (req, res) => {
     //get the token from the header if present
@@ -474,8 +490,8 @@ module.exports = (app) => {
         let data = groupByUser(paths, 'userId');
         let result = Object.keys(data).map((usrId, idx) =>
           (data[usrId].length > 0 ?  {
-            user: 'usr' + (idx + 1).toString(),
-            // user: users.find(u => u.id === usrId).name,
+            // user: 'usr' + (idx + 1).toString(),
+            user: users.find(u => u.id === usrId).name,
             desktop: data[usrId].filter((p)=> p.drawType === 'desktop').length,
             phone: data[usrId].filter((p)=> p.drawType === 'phone').length,
             location: data[usrId].filter((p)=> p.drawType === 'location').length
@@ -543,8 +559,8 @@ module.exports = (app) => {
 
         let result = Object.keys(data).map((usrId, idx) =>
             (data[usrId].length > 0 ?  {
-              user: 'usr' + (idx + 1).toString(),
-              // user: users.find(u => u.id === usrId).name,
+              // user: 'usr' + (idx + 1).toString(),
+              user: users.find(u => u.id === usrId).name,
               desktop: parseFloat((data[usrId].filter((p)=> p.drawType === 'desktop').reduce((a, b) => +a + +b.distance, 0) / 1000).toFixed(2)),
               phone: parseFloat((data[usrId].filter((p)=> p.drawType === 'phone').reduce((a, b) => +a + +b.distance, 0) / 1000).toFixed(2)),
               location: parseFloat((data[usrId].filter((p)=> p.drawType === 'location').reduce((a, b) => +a + +b.distance, 0) / 1000).toFixed(2))
