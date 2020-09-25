@@ -490,8 +490,8 @@ module.exports = (app) => {
         let data = groupByUser(paths, 'userId');
         let result = Object.keys(data).map((usrId, idx) =>
           (data[usrId].length > 0 ?  {
-            // user: 'usr' + (idx + 1).toString(),
-            user: users.find(u => u.id === usrId).name,
+            user: 'usr' + (idx + 1).toString(),
+            // user: users.find(u => u.id === usrId).name,
             desktop: data[usrId].filter((p)=> p.drawType === 'desktop').length,
             phone: data[usrId].filter((p)=> p.drawType === 'phone').length,
             location: data[usrId].filter((p)=> p.drawType === 'location').length
@@ -559,8 +559,8 @@ module.exports = (app) => {
 
         let result = Object.keys(data).map((usrId, idx) =>
             (data[usrId].length > 0 ?  {
-              // user: 'usr' + (idx + 1).toString(),
-              user: users.find(u => u.id === usrId).name,
+              user: 'usr' + (idx + 1).toString(),
+              // user: users.find(u => u.id === usrId).name,
               desktop: parseFloat((data[usrId].filter((p)=> p.drawType === 'desktop').reduce((a, b) => +a + +b.distance, 0) / 1000).toFixed(2)),
               phone: parseFloat((data[usrId].filter((p)=> p.drawType === 'phone').reduce((a, b) => +a + +b.distance, 0) / 1000).toFixed(2)),
               location: parseFloat((data[usrId].filter((p)=> p.drawType === 'location').reduce((a, b) => +a + +b.distance, 0) / 1000).toFixed(2))
